@@ -1,6 +1,8 @@
-import * as firebase from 'https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js';
+ import * as firebase from 'https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js';
 import * as firestore from 'https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js';
 import { twofish } from 'twofish';
+
+//initiallizing the firebase project and database
 const firebaseConfig = {
 
     apiKey: "AIzaSyDPcYyQE-WmQZovitECCfva7n6voYFUUhc",
@@ -17,11 +19,12 @@ const firebaseConfig = {
   
   };
   const app=firebase.initializeApp(firebaseConfig);
-  const db=firestore.getFirestore(app);
-  let currentUser=null;    
-  let recipient=null;
-  let userSignaturekeypair;
-  let userEncryptionKeypair;
+  const db=firestore.getFirestore(app);  
+  //global variable that are used during a lot of the functions
+  let currentUser=null; //current session user  
+  let recipient=null; //the recipient that the chat is open on
+  let userSignaturekeypair;    //the sinature keys
+  let userEncryptionKeypair; //the ecnryption keys
 
 /*
   _                    _             __ _____  _                 _        
@@ -34,12 +37,12 @@ const firebaseConfig = {
                 |___/                             |___/                   
 */
 
-
+//html elements that are used for hints about the form requirements in sign/log-in form
   let usernameProblem=document.getElementById("username-problem");
   let passwordProblem=document.getElementById("password-problem");
   let confirmPasswordProblem= document.getElementById("confirm-password-problem");
   let problems=[usernameProblem,passwordProblem,confirmPasswordProblem];
-
+//switching between the login and the sign-in page
 document.getElementById("sign-in-link").addEventListener("click", function() {
         if(document.getElementById("sign-in-link").innerHTML=="Sign In") {
             document.getElementById("login-title").innerHTML="Sign In"
@@ -77,7 +80,7 @@ form_button.addEventListener("click", async function() {
         }
     });
 
-
+    
 async function signIn(username,password,confirm_password){
 
             if(username=="" || password=="" || confirm_password=="") {
@@ -110,11 +113,12 @@ async function signIn(username,password,confirm_password){
                     usernameProblem.style.display="block";
                     return;
                 }
+                //generating the keys for the first time
                 userSignaturekeypair=await generateSigningKeys();
                 userEncryptionKeypair=await generateEncryptionKeys();
 
                 
-                await  firestore.setDoc(documentReference,{
+                await  firestore.setDoc(documentReference,{//creating the user,with his hashed password,and his public keys and encrypted private keys
                         username: username,
                         password:arrayBufferToBase64(await hash(password,"SHA-256")),
                         signaturePublicKey:await exportPublicKey(userSignaturekeypair.publicKey),
@@ -129,7 +133,7 @@ async function signIn(username,password,confirm_password){
                 document.getElementById("login").style.display="none"
                 document.getElementById("chat").style.display="flex"
                 document.getElementById("current-user").textContent=username;
-                loadConvos();
+                loadConvos();//loading the list of conversations that's gonna appear on the left side of the chat
             };
  
 }
@@ -158,7 +162,7 @@ async function logIn(username,password){
                 usernameProblem.style.display="block";
                 return;
             }
-            if(user.data().password!=arrayBufferToBase64(await hash(password,"SHA-256"))) {
+            if(user.data().password!=arrayBufferToBase64(await hash(password,"SHA-256"))) {//checking the hashed password with the hashed input from the login
                 problems.forEach(function(problem) {
                     problem.style.display="none";
                 }
@@ -168,8 +172,8 @@ async function logIn(username,password){
                 return;
             }
             
-            let publicKey=await importSigningPublicKey(user.data().signaturePublicKey);    
-            let privateKey=await decryptSigningPrivateKey(user.data().encryptedSignaturePrivateKey,password);
+            let publicKey=await importSigningPublicKey(user.data().signaturePublicKey);    //importing the keys for the current session after login
+            let privateKey=await decryptSigningPrivateKey(user.data().encryptedSignaturePrivateKey,password);//decrypting the private keys after importing them
             userSignaturekeypair={publicKey,privateKey};
 
 
@@ -183,7 +187,7 @@ async function logIn(username,password){
             document.getElementById("chat").style.display="flex"
             document.getElementById("current-user").textContent=username;
 
-             loadConvos();
+             loadConvos();//loading conversation that're gonna appear on the left side of the chat
 }
 
 
@@ -235,6 +239,7 @@ const addButton=document.getElementById("add-convo");
         let algorithmChoice=document.querySelector('input[name="algorithm"]:checked').value;
         let keySizeChoice=document.querySelector('input[name="keySize"]:checked').value;
         let formula=new Uint8Array(5);
+         //making the formula(control bits) of the end-to-end encryption using the input(radios) from the popup form
         switch(hashChoice) {
             case "SHA-256":formula[2]=1;
             break;
@@ -261,6 +266,7 @@ const addButton=document.getElementById("add-convo");
             default:formula[1]=2;
         }
         let formulaString=arrayBufferToBase64(formula);
+     //handling hints for the input requirements when the users enters a false information
         closeButton.addEventListener("click", function() {
             document.getElementById("problem-recipient-input").style.display="none";
             popupWindow.style.display="none";
@@ -283,7 +289,7 @@ const addButton=document.getElementById("add-convo");
         if(!user.exists()) {
             document.getElementById("problem-recipient-input").innerHTML=`*user ${tempoRecipient} does not exist`;
             document.getElementById("problem-recipient-input").style.display="block";
-        }else{      
+        }else{      //creating  conversations with the formula on both sides (user and recipient) on the database
         const doc=firestore.doc(db,`users/${currentUser}/conversations`,tempoRecipient);
         const conversation=await firestore.getDoc(doc);
         if(!conversation.exists()) {
@@ -300,7 +306,7 @@ const addButton=document.getElementById("add-convo");
             timestamp: firestore.serverTimestamp(),
             formula:formulaString
         });
-        }else{
+        }else{//updating the conversation formula for the next message on the chat
             await firestore.updateDoc(doc,{
                 formula:formulaString
             })
@@ -314,7 +320,7 @@ const addButton=document.getElementById("add-convo");
         popupWindow.style.display="none";
         document.getElementById("current-recipient").textContent=recipient;
         document.getElementById("right-side").style.display="block";
-        loadMessages();
+        loadMessages();//import the past messages of the conversation and initialise a real-time listener to update the conversation with new messages
     }
     }
          });
@@ -323,7 +329,7 @@ const addButton=document.getElementById("add-convo");
 
 
     //the send message function
- async function sendMessage() {
+ async function sendMessage() {//sennd messages and encrypting them before sending them
 
         let conversation=await firestore.getDoc(firestore.doc(db,`users/${currentUser}/conversations`,recipient));
         let formula= new Uint8Array(base64ToArrayBuffer(conversation.data().formula));
@@ -338,10 +344,10 @@ const addButton=document.getElementById("add-convo");
         await firestore.addDoc(firestore.collection(db,`users/${currentUser}/conversations/${recipient}/messages`),{
             sender: currentUser,
             recipient: recipient,
-            message:await PGPencrypt(message,formula,userEncryptionKeypair.publicKey,userSignaturekeypair.privateKey),
+            message:await PGPencrypt(message,formula,userEncryptionKeypair.publicKey,userSignaturekeypair.privateKey),//encrypt the message before sending it
             timestamp: firestore.serverTimestamp()
         });
-        await firestore.addDoc(firestore.collection(db,`users/${recipient}/conversations/${currentUser}/messages`),{
+        await firestore.addDoc(firestore.collection(db,`users/${recipient}/conversations/${currentUser}/messages`),{//creating a duplicate for the message to send to the other user(duplicate of the conversation)
             sender: currentUser,
             recipient:recipient,
             message:await PGPencrypt(message,formula,encryptionPublicKey,userSignaturekeypair.privateKey),
@@ -361,9 +367,9 @@ const addButton=document.getElementById("add-convo");
 
 
 
-      async function loadMessages() {
+      async function loadMessages() {//load the past mesasges of the conversation and update the conversation with new messages that are sent in real-time
         let sentFrom = await firestore.getDoc(firestore.doc(db, 'users', recipient));
-        let signaturePublicKey = await importSigningPublicKey(sentFrom.data().signaturePublicKey);
+        let signaturePublicKey = await importSigningPublicKey(sentFrom.data().signaturePublicKey);//importing the compatible key
     
         const messagesDiv = document.getElementById("messages");
         const q = firestore.query(
@@ -381,16 +387,16 @@ const addButton=document.getElementById("add-convo");
             firestore.orderBy("timestamp")
         );
     
-        // Store messages in memory with their DOM elements
+        
         const messageElements = new Map();
     
         firestore.onSnapshot(q, (snapshot) => {
-            // Process all documents in order
+          
             const docs = [...snapshot.docs].sort((a, b) => 
                 a.data().timestamp?.seconds - b.data().timestamp?.seconds
             );
     
-            // Clear only if it's the first load
+            
             if (messageElements.size === 0) {
                 messagesDiv.innerHTML = "";
             }
@@ -399,13 +405,13 @@ const addButton=document.getElementById("add-convo");
                 const data = doc.data();
                 const id = doc.id;
     
-                // If we haven't created this message yet
+                
                 if (!messageElements.has(id)) {
                     const messageElement = document.createElement("div");
                     messagesDiv.appendChild(messageElement);
                     messageElements.set(id, messageElement);
                     
-                    // Display immediately (timestamp might be undefined)
+                    
                     await displayMessage(
                         signaturePublicKey,
                         data.sender,
@@ -414,14 +420,14 @@ const addButton=document.getElementById("add-convo");
                         messageElement
                     );
                 } 
-                // If timestamp was undefined but is now available
+                //handling timestamp (it can go undefined when the message is just sent)
                 else if (!messageElements.get(id).querySelector(".date") && data.timestamp) {
                     // Just update the timestamp
                     const dateElement = document.createElement("div");
                     dateElement.classList.add("date");
                     dateElement.textContent = `${data.timestamp.toDate().toLocaleDateString()} ${data.timestamp.toDate().toLocaleTimeString()}`;
                     
-                    // Find where to insert the date based on sender
+                    
                     if (data.sender === currentUser) {
                         messageElements.get(id).appendChild(dateElement);
                     } else {
@@ -435,7 +441,7 @@ const addButton=document.getElementById("add-convo");
     }
     
     // Modified displayMessage function
-    async function displayMessage(signaturePublicKey, sender, encryptedPackage, timestamp, messageElement) {
+    async function displayMessage(signaturePublicKey, sender, encryptedPackage, timestamp, messageElement) {//displaying the message in the correct side of the conversation according to who sent it
         const message = await PGPdecrypt(encryptedPackage, 
             sender === currentUser ? userEncryptionKeypair.privateKey : userEncryptionKeypair.privateKey,
             sender === currentUser ? userSignaturekeypair.publicKey : signaturePublicKey
@@ -472,8 +478,8 @@ const addButton=document.getElementById("add-convo");
     }
 
 
-async function loadConvos(){
-        const q=firestore.query(firestore.collection(db,"users",currentUser,"conversations"),firestore.orderBy("timestamp","desc"));
+async function loadConvos(){//loads the list of conversations that is gonna show on the left side of  the chat
+        const q=firestore.query(firestore.collection(db,"users",currentUser,"conversations"),firestore.orderBy("timestamp","desc"));//searching for the conversations and ordering them by the last time chat
         firestore.onSnapshot(q,(snapshot)=>{
             const convoList=document.getElementById("chat-list");
             convoList.innerHTML="";
@@ -514,11 +520,11 @@ async function loadConvos(){
 
 
 
-async function PGPencrypt(message,formula,encryptionPublicKey,signaturePrivateKey){
+async function PGPencrypt(message,formula,encryptionPublicKey,signaturePrivateKey){//the big algorithm that do all the work
     let keySize;
     let key;
     let iv;
-    let hashFunction;
+    let hashFunction;//extracting
     switch(formula[2]){
         case 1:hashFunction="SHA-256";
         break;
