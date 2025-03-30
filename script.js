@@ -917,12 +917,12 @@ async function decryptSigningPrivateKey(encryptedData, password) {//decrypting t
       publicKey,
       keydata
     );
-    return arrayBufferToBase64(ciphertext);
+    return arrayBufferToBase64(ciphertext);//returning the encrypted key
   }
 
 
 
-  async function rsaDecrypt(base64Ciphertext, privateKey) {
+  async function rsaDecrypt(base64Ciphertext, privateKey) {//decrypting the encrypted twofish algorithm key with rsa private key of the user
     const ciphertext = base64ToArrayBuffer(base64Ciphertext);
     const decrypted = await crypto.subtle.decrypt(
       { name: "RSA-OAEP" },
@@ -932,7 +932,7 @@ async function decryptSigningPrivateKey(encryptedData, password) {//decrypting t
     return decrypted;
   }
 
-  async function rsaDecryptAesKey(base64Ciphertext, privateKey) {
+  async function rsaDecryptAesKey(base64Ciphertext, privateKey) {//decrypting the encrypted aes algorithm key with rsa private key of the user
     const ciphertext = base64ToArrayBuffer(base64Ciphertext);
     const decrypted = await crypto.subtle.decrypt(
       { name: "RSA-OAEP" },
@@ -952,13 +952,13 @@ async function decryptSigningPrivateKey(encryptedData, password) {//decrypting t
 
 
 
-  async function sign(message, privateKey, hashFunction) {
-    // 1. Hash the message using your existing function
-    const messageHash = await hash(message,hashFunction); // Must return Uint8Array
+  async function sign(message, privateKey, hashFunction) {//signing the text with private key of the user after hashing it with the selected algorithm
+    
+    const messageHash = await hash(message,hashFunction); 
   
-    // 2. Encrypt the hash with private key (this is the signature)
+    
     const signature = await crypto.subtle.sign(
-      { name: "RSA-PSS", saltLength: 32 }, // Or "RSASSA-PKCS1-v1_5"
+      { name: "RSA-PSS", saltLength: 32 }, 
       privateKey,
       messageHash
     );
@@ -967,13 +967,11 @@ async function decryptSigningPrivateKey(encryptedData, password) {//decrypting t
   }
 
 
-  async function verify(message, base64Signature, publicKey, hashFunction) {
-    // 1. Hash the original message
+  async function verify(message, base64Signature, publicKey, hashFunction) {//verifiying the integrity of the text after hashing it with the same hash function selected for signing and comparing it the the signature
     const messageHash = await hash(message,hashFunction);
   
-    // 2. Decrypt the signature (extract expected hash)
     const isValid = await crypto.subtle.verify(
-      { name: "RSA-PSS", saltLength: 32 }, // Must match signing algorithm
+      { name: "RSA-PSS", saltLength: 32 }, 
       publicKey,
       base64ToArrayBuffer(base64Signature),
       messageHash
@@ -994,7 +992,7 @@ async function decryptSigningPrivateKey(encryptedData, password) {//decrypting t
 */
 
 
-async function deriveAesKey(password, salt) {
+async function deriveAesKey(password, salt) {//makes a strong key from the password to encrypt the private keys before exporting them to the database
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
       new TextEncoder().encode(password),
@@ -1007,13 +1005,13 @@ async function deriveAesKey(password, salt) {
       {
         name: 'PBKDF2',
         salt: salt,
-        iterations: 100000, // Security parameter (NIST recommended minimum)
+        iterations: 100000, 
         hash: 'SHA-256'
       },
       keyMaterial,
-      { name: 'AES-CBC', length: 256 }, // 256-bit key
+      { name: 'AES-CBC', length: 256 }, 
       false, // Not extractable
-      ['encrypt', 'decrypt'] // Key usages
+      ['encrypt', 'decrypt'] 
     );
   }
 
