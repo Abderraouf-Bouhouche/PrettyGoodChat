@@ -524,8 +524,9 @@ async function PGPencrypt(message,formula,encryptionPublicKey,signaturePrivateKe
     let keySize;
     let key;
     let iv;
-    let hashFunction;//extracting
-    switch(formula[2]){
+    let hashFunction;
+    //extracting what algorithms to use according to the formula
+    switch(formula[2]){//deciding the hash for the message (in the signature)
         case 1:hashFunction="SHA-256";
         break;
         case 2:hashFunction="SHA-284";
@@ -533,15 +534,15 @@ async function PGPencrypt(message,formula,encryptionPublicKey,signaturePrivateKe
         case 3:hashFunction="SHA3-256"
         break;
     }
-    switch(formula[1]){
+    switch(formula[1]){//key size for the encrypting algorithm
         case 1:keySize=256;
         break;
         case 2:keySize=192;
         break;
         case 3:keySize=128;
     }
-    iv=await genereateIv();
-    switch(formula[0]){
+    iv=await genereateIv();//generating hte initial vector
+    switch(formula[0]){//generating the key and encrypting using the suited algorithm according to the formula
         case 1:key=await generateAesKeys(keySize);
                 message=aesCtrEncrypt(message,key,iv);
         break;
@@ -549,13 +550,13 @@ async function PGPencrypt(message,formula,encryptionPublicKey,signaturePrivateKe
                 message=twofishCtrEncrypt(message,key,iv);
         break;
     }
-    let messageSignature=sign(await message,signaturePrivateKey,hashFunction);
-    key=rsaEncrypt(key,encryptionPublicKey);
-    iv=rsaEncrypt(iv,encryptionPublicKey);
-    let keySignature=sign(await key,signaturePrivateKey,hashFunction);
-    let ivSignature=sign(await iv,signaturePrivateKey,hashFunction);
-    let originalPackage={
-        formula:arrayBufferToBase64(formula),
+    let messageSignature=sign(await message,signaturePrivateKey,hashFunction);//signing the message
+    key=rsaEncrypt(key,encryptionPublicKey);//encrypting the key with the recipient public key
+    iv=rsaEncrypt(iv,encryptionPublicKey);//encrypting the iv with the recipient public key
+    let keySignature=sign(await key,signaturePrivateKey,hashFunction);//signing the encrypted key
+    let ivSignature=sign(await iv,signaturePrivateKey,hashFunction);//signing the encrypted iv
+    let originalPackage={//marking the package to sign him,it also contains the formula,every message has
+        formula:arrayBufferToBase64(formula),                       //his own formula so that when the conversation formula gets updated past message will still be able to get decrypted
         message:await message,
         messageSignature:await messageSignature,
         key:await key,
@@ -564,19 +565,20 @@ async function PGPencrypt(message,formula,encryptionPublicKey,signaturePrivateKe
         ivSignature:await ivSignature
     }
 
-    let packageSignature=await sign(stringifyDeterministic(originalPackage),signaturePrivateKey,"SHA-256");
+    let packageSignature=await sign(stringifyDeterministic(originalPackage),signaturePrivateKey,"SHA-256");//signing the package
     let fullPackage={
         packageSignature:packageSignature,
         originalPackage:originalPackage
     }
-    return fullPackage;
+    return fullPackage;//returning the package and his formula
 }
 
 async function PGPdecrypt(packageRecieved,encryptionPrivateKey,signaturePublicKey){
     let originalPackage=packageRecieved.originalPackage;
-    let formula=new Uint8Array(base64ToArrayBuffer(originalPackage.formula));
+    let formula=new Uint8Array(base64ToArrayBuffer(originalPackage.formula));//extracting the formula from the package
     let keySize;
     let hashFunction;
+   //getting the informations of the used algorithms in the message from the formula
     switch(formula[2]){
         case 1:hashFunction="SHA-256";
         break;
@@ -593,6 +595,7 @@ async function PGPdecrypt(packageRecieved,encryptionPrivateKey,signaturePublicKe
         case 3:keySize=128;
         break;
     }
+ //veryifing the signatures fo the package ,key,iv,and message
     if(! await verify(stringifyDeterministic(packageRecieved.originalPackage),packageRecieved.packageSignature,signaturePublicKey,"SHA-256")){
             console.error("package corrupted!");
         if(!await verify(originalPackage.key,originalPackage.keySignature,signaturePublicKey,hashFunction)){
@@ -607,14 +610,13 @@ async function PGPdecrypt(packageRecieved,encryptionPrivateKey,signaturePublicKe
         return;
     }
     let key;
-    let iv=await rsaDecrypt(originalPackage.iv,encryptionPrivateKey);
+    let iv=await rsaDecrypt(originalPackage.iv,encryptionPrivateKey);//decrypting the iv with the user private key
     let message;
     switch(formula[0]){
         case 1:
-            key=await rsaDecryptAesKey(originalPackage.key,encryptionPrivateKey);
-            message=await aesCtrDecrypt(originalPackage.message,key,iv);
-            console.log(message)
-        return message;
+            key=await rsaDecryptAesKey(originalPackage.key,encryptionPrivateKey);//decrypting the key with the user private key
+            message=await aesCtrDecrypt(originalPackage.message,key,iv);//decrypting the message using the key and iv.
+        return message;//returning the message
         break;
         case 2:
             key=await rsaDecrypt(originalPackage.key,encryptionPrivateKey);
@@ -628,7 +630,7 @@ async function PGPdecrypt(packageRecieved,encryptionPrivateKey,signaturePublicKe
 
 //aes algorithms
 
-async function aesCtrEncrypt(message, key, iv) {
+async function aesCtrEncrypt(message, key, iv) {//decrypting with aes-ctr using key  and iv
     const ciphertext = await crypto.subtle.encrypt(
       {
         name: "AES-CTR",
@@ -642,7 +644,7 @@ async function aesCtrEncrypt(message, key, iv) {
   }
 
 
-async function aesCtrDecrypt(base64Ciphertext, key, iv) {
+async function aesCtrDecrypt(base64Ciphertext, key, iv) {//decrypting with aes-ctr using key and iv
     const ciphertext = base64ToArrayBuffer(base64Ciphertext);
     const decrypted = await crypto.subtle.decrypt(
       { name: "AES-CTR", counter: iv, length: 64 },
@@ -655,7 +657,7 @@ async function aesCtrDecrypt(base64Ciphertext, key, iv) {
 
 // Twofish algorithms
 
-function twofishCtrEncrypt(message, key, iv) {
+function twofishCtrEncrypt(message, key, iv) {//encrypting with twofish algorithm using key and iv
     const tf = new twofish.Twofish(key);
     const data = typeof message=== 'string' 
       ? new TextEncoder().encode(message) 
@@ -669,18 +671,18 @@ function twofishCtrEncrypt(message, key, iv) {
       for (let j = 0; j < 16 && i + j < data.length; j++) {
         ciphertext[i + j] = data[i + j] ^ keystream[j];
       }
-      // Increment counter (big-endian)
+    
       for (let k = 15; k >= 0 && ++counter[k] === 0; k--);
     }
     
     return arrayBufferToBase64(ciphertext);
   }
 
-async function twofishCtrDecrypt(base64Ciphertext, key, iv) {
+async function twofishCtrDecrypt(base64Ciphertext, key, iv) {//decrypting with twofish algortithm using key and iv
     const ciphertext =base64ToArrayBuffer(base64Ciphertext);
     const tf = new twofish.Twofish(key);
     const decrypted = new Uint8Array(ciphertext.length);
-    const counter = new Uint8Array(iv); // Clone IV
+    const counter = new Uint8Array(iv); 
   
     for (let i = 0; i < ciphertext.length; i += 16) {
       const keystream = tf.encrypt(counter);
@@ -697,31 +699,29 @@ async function twofishCtrDecrypt(base64Ciphertext, key, iv) {
 //  keys generators
 
 
-async function generateAesKeys(keySize) {
-    // 256-bit key (32 bytes)
+async function generateAesKeys(keySize) {//generating the key for the aes encryption
+    
     const key = await crypto.subtle.generateKey(
       {
         name: "AES-CTR",
         length: keySize,
       },
-      true, // Extractable
+      true, 
       ["encrypt", "decrypt"]
     );
   
 
     return  key;
   }
- async function genereateIv(){
+ async function genereateIv(){//generating the iv for both the encryption algorithms
     return crypto.getRandomValues(new Uint8Array(16));
  }
 
 
 
-  function generateTwofishKeys(keySize) {
-    // 256-bit key (32 bytes)
+  function generateTwofishKeys(keySize) {//generating the key for the twofish encryption
+    
     const key = crypto.getRandomValues(new Uint8Array(keySize/8));
-  
-  
     return  key;
   }
                                                                
@@ -735,7 +735,7 @@ async function generateAesKeys(keySize) {
                             
 
 
-async function hash(text,algorithm) {
+async function hash(text,algorithm) {//general function that hash the text using the according algorithm entered in parameters and returning the imprint
     //  Convert password to a byte array
     const encoder = new TextEncoder();
     const data = encoder.encode(text);
@@ -758,8 +758,8 @@ async function hash(text,algorithm) {
   |_|  \_\|_____//_/    \_\
  */
 
-  // Generate Encryption Key Pair (RSA-OAEP)
-async function generateEncryptionKeys() {
+  
+async function generateEncryptionKeys() {//generating the encryption public and private keys using RSA-OAEP
     return await crypto.subtle.generateKey(
       {
         name: "RSA-OAEP",
@@ -767,13 +767,13 @@ async function generateEncryptionKeys() {
         publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
         hash: "SHA-256",
       },
-      true, // Extractable
-      ["encrypt", "decrypt"] // Strict usage
+      true, 
+      ["encrypt", "decrypt"] 
     );
   }
   
-  // Generate Signing Key Pair (RSA-PSS)
-  async function generateSigningKeys() {
+  
+  async function generateSigningKeys() {//generating the signature public and private keys using RSA-PSS
     return await crypto.subtle.generateKey(
       {
         name: "RSA-PSS",
@@ -781,8 +781,8 @@ async function generateEncryptionKeys() {
         publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
         hash: "SHA-256",
       },
-      true, // Extractable
-      ["sign", "verify"] // Strict usage
+      true, 
+      ["sign", "verify"] 
     );
   }
 
@@ -791,13 +791,13 @@ async function generateEncryptionKeys() {
 
 
 
-  // Export Public Key (SPKI format)
+ //exporting the public Keys
 async function exportPublicKey(publicKey) {
     const exported = await crypto.subtle.exportKey("spki", publicKey);
     return arrayBufferToBase64(exported);
   }
   
-  // Export Private Key (PKCS#8 format)
+  // Export the private keys
   async function exportPrivateKey(privateKey) {
     const exported = await crypto.subtle.exportKey("pkcs8", privateKey);
     return arrayBufferToBase64(exported);
@@ -806,17 +806,17 @@ async function exportPublicKey(publicKey) {
 
 
   // Import Public Key
-async function importEncryptionPublicKey(base64Key) {
+async function importEncryptionPublicKey(base64Key) {//importing the public key of RSA-OAEP
     return await crypto.subtle.importKey(
       "spki",
       base64ToArrayBuffer(base64Key),
       { name: "RSA-OAEP", hash: "SHA-256" },
       true,
-      ["encrypt"] // Only encryption allowed
+      ["encrypt"] 
     );
   }
   
-  async function importSigningPublicKey(base64Key) {
+  async function importSigningPublicKey(base64Key) { //importing the public key of RSA-PSS
     return await crypto.subtle.importKey(
       "spki",
       base64ToArrayBuffer(base64Key),
@@ -827,7 +827,7 @@ async function importEncryptionPublicKey(base64Key) {
   }
   
   // Import Private Key
-  async function importEncryptionPrivateKey(base64Key) {
+  async function importEncryptionPrivateKey(base64Key) {//imporitng the private key of RSA-OAEP
     return await crypto.subtle.importKey(
       "pkcs8",
       base64ToArrayBuffer(base64Key),
@@ -837,7 +837,7 @@ async function importEncryptionPublicKey(base64Key) {
     );
   }
   
-  async function importSigningPrivateKey(base64Key) {
+  async function importSigningPrivateKey(base64Key) {//importing the private key of RSA-PSS
     return await crypto.subtle.importKey(
       "pkcs8",
       base64ToArrayBuffer(base64Key),
@@ -848,7 +848,7 @@ async function importEncryptionPublicKey(base64Key) {
   }
 
 
-  async function encryptPrivateKey(privateKey, password) {
+  async function encryptPrivateKey(privateKey, password) {//encrypting the private key and then exporiting it 
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const aesKey = await deriveAesKey(password, salt);
     const iv = crypto.getRandomValues(new Uint8Array(16));
@@ -869,7 +869,7 @@ async function importEncryptionPublicKey(base64Key) {
 
 
 
-  async function decryptEncryptionPrivateKey(encryptedData, password) {
+  async function decryptEncryptionPrivateKey(encryptedData, password) {//decrypting the encryption private key and then importing it
     const aesKey = await deriveAesKey( 
       password,
       base64ToArrayBuffer(encryptedData.salt)
@@ -882,12 +882,12 @@ async function importEncryptionPublicKey(base64Key) {
     );
   
     const privateKeyBase64 = new TextDecoder().decode(decrypted);
-    return importEncryptionPrivateKey(privateKeyBase64); // or importSigningPrivateKey
+    return importEncryptionPrivateKey(privateKeyBase64); 
   }
 
 
 
-async function decryptSigningPrivateKey(encryptedData, password) {
+async function decryptSigningPrivateKey(encryptedData, password) {//decrypting the private key of signature and the importing it to use
     const aesKey = await deriveAesKey(
       password,
       base64ToArrayBuffer(encryptedData.salt)
@@ -904,15 +904,15 @@ async function decryptSigningPrivateKey(encryptedData, password) {
   }
   
 
-  async function rsaEncrypt(key, publicKey) {
-    let keydata;
-    if(key instanceof Uint8Array){
+  async function rsaEncrypt(key, publicKey) {//encrypting keys with public key of the recipient
+    let keydata;//tranforming the key to the compatible form of data (arrayBuffer)
+    if(key instanceof Uint8Array){//if the key is from the twofish algortihm
         keydata=key;
-    }else{
+    }else{//if the key is from aes algorithm
         keydata=await crypto.subtle.exportKey("raw",key);
     }
     
-    const ciphertext = await crypto.subtle.encrypt(
+    const ciphertext = await crypto.subtle.encrypt(//encrypting the key
       { name: "RSA-OAEP" },
       publicKey,
       keydata
