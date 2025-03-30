@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pretty Good Chat</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="login">
+        <h1 id="login-title">Log in</h1>
+        <form id="login-form">
+          <input type="text" id="username" placeholder="Username">
+          <p class='problem' id="username-problem"></p>
+          <input type="password" id="password" placeholder="Password">
+          <p class='problem' id="password-problem"></p>
+          <input title="password" class="disabled" type="password" id="confirm-password" placeholder="confirm password">
+          <p class='problem' id="confirm-password-problem"></p>
+  
+          <button id="form-button" type="button">Log in</button>
+          <p id="login-text">you dont have an account?</p><span id="sign-in-link">Sign In</span>
+  
+      </div>
+      <div id="chat">
+        <button id="add-convo" type="button">+</button>
+        <div id="left-side">
+          <div id="chat-list-header">
+          <h2>Chat as <span id="current-user"></span></h2>
+          </div>
+          <div id="chat-list">
+          </div>
+        </div>
+        <div id="right-side">
+        <div id="text-area">
+
+          <h2>Chat with <span id="current-recipient"></span></h2>
+          <div id="messages"></div>
+
+        </div>
+        <div id="input-container">
+
+          <input type="text" id="message-input" placeholder="Type a message...">
+          <button id="send-button" type="button">Send</button>
+
+        </div>
+        </div>
+      </div>
+      <div class="popup" id="popup">
+        <div class="popup-content">
+            <span id="closeSetupPopup" class="close-btn">&times;</span>
+            <h2>setup conversation</h2>
+          <div id="popup-input">
+              <h4>enter your recipient</h4>
+              <input type="text" id="recipient-input" placeholder="Recipient">
+              <div class='problem' id="problem-recipient-input" ></div>
+              <h4>Choose an algorithm</h4>
+              <div class="word-radio-group">
+                <label class="word-radio">
+                  <input type="radio" name="algorithm" value="AES" checked>
+                  <span>AES</span>
+                </label>
+                
+                <label class="word-radio">
+                  <input type="radio" name="algorithm" value="TwoFish">
+                  <span>TwoFish</span>
+                </label>
+              </div>
+              <h4>Choose a key size</h4>
+              <div class="word-radio-group">
+                <label class="word-radio">
+                  <input type="radio" name="keySize" value="256" checked>
+                  <span>256</span>
+                </label>
+                
+                <label class="word-radio">
+                  <input type="radio" name="keySize" value="192">
+                  <span>192</span>
+                </label>
+                 <label class="word-radio">
+                  <input type="radio" name="keySize" value="128">
+                  <span>128</span>
+                </label>                                                
+              </div>                            
+              <h4>choose a hash</h4>
+              <div class="word-radio-group">
+                <label class="word-radio">
+                  <input type="radio" name="hash" value="SHA-256" checked>
+                  <span>SHA-256</span>
+                </label>
+                
+                <label class="word-radio">
+                  <input type="radio" name="hash" value="SHA-384">
+                  <span>SHA-384</span>
+                </label>
+                 <label class="word-radio">
+                  <input type="radio" name="hash" value="SHA3-256">
+                  <span>SHA3-256</span>
+                </label>                                                
+              </div> 
+          </div>
+          <div class="button-container">
+              <button class="btn" id="submitSetupButton" type="button">submit</button>
+          </div>
+        </div>
+    </div>
+
+    
+
+<script type="module" src="script.js"></script>
+</body>
+</html>

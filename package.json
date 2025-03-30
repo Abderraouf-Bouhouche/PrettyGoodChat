@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "firebase": "^11.5.0",
+    "twofish": "^1.0.1",
+    "vite": "^6.2.3"
+  },
+  "scripts": {
+    "dev": "vite --port 3000",
+    "build": "vite build"
+  }
+}
