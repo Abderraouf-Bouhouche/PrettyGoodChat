@@ -1,6 +1,5 @@
  import * as firebase from 'https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js';
 import * as firestore from 'https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js';
-import { twofish } from 'twofish';
 
 //initiallizing the firebase project and database
 const firebaseConfig = {
